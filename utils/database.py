@@ -164,7 +164,7 @@ class Database:
     # Method registers a wallet and stores wallet_code for the member
     async def get_wallet_code(self, member: discord.Member):
         code = await self.get_value(member, "wallet_code")      
-        if (!code) :
+        if (code == '') :
             res = await requests.post(os.getenv("WEBHOOK_WALLET_ONBOARDING"))
             data = res.json()
             self.set_value(member, code, "wallet_code")
