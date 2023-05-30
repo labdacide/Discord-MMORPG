@@ -5,6 +5,7 @@ import aiosqlite
 import asyncio
 
 from config import FACTIONS
+from utils.thx import create_wallet_code
 
 class Database:
     DB = "divergent.db"
@@ -39,11 +40,6 @@ class Database:
                 coins INTEGER DEFAULT 0
                 )"""
             )
-            await db.execute(
-                """
-                ALTER TABLE users ADD COLUMN IF NOT EXISTS wallet_code TEXT
-                """
-            )
             for faction in FACTIONS.keys():
                 await db.execute("INSERT OR IGNORE INTO factions (faction) VALUES (?)", (faction,))
             await db.commit()
@@ -73,6 +69,14 @@ class Database:
         async with aiosqlite.connect(self.DB) as db:
             await db.execute(f"UPDATE users SET {value} = {amount} WHERE user_id = ?", (member.id,))
             await db.commit()
+
+    async def set_wallet_code(self, member: discord.Member, code: str):
+        await self.check_member(member)
+        async with aiosqlite.connect(self.DB) as db:
+            await db.execute(f"UPDATE users SET wallet_code = '{code}' WHERE user_id = ?", (member.id,))
+            await db.commit()
+        new_value = await self.get_value(member, "wallet_code")
+        return new_value
 
     async def restore_health(self, member: discord.Member, percent: int):
         await self.check_member(member)
@@ -161,14 +165,11 @@ class Database:
             await db.execute(f"UPDATE factions SET {value} = {value} + {change} WHERE faction = ?", (faction,))
             await db.commit()
 
-    # Method registers a wallet and stores wallet_code for the member
     async def get_wallet_code(self, member: discord.Member):
         code = await self.get_value(member, "wallet_code")      
-        if (code == '') :
-            res = await requests.post(os.getenv("WEBHOOK_WALLET_ONBOARDING"))
-            data = res.json()
-            self.set_value(member, code, "wallet_code")
-            return data.code
+        if (code == None):
+            new_code = await create_wallet_code()
+            await self.set_wallet_code(member, new_code)
         return code
 
     async def get_max_hp(self, member: discord.Member):
