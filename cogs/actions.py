@@ -6,10 +6,12 @@ from discord.ext.commands import BucketType
 
 import random
 import aiosqlite
+import aiohttp
+import os
 
 from config import CURRENCY, COLOR
 from utils import set_thumbnail, reset_cooldown
-
+from utils.thx import create_milestone_reward_claim
 
 class Actions(commands.Cog):
     def __init__(self, bot):
@@ -39,6 +41,12 @@ class Actions(commands.Cog):
             color=COLOR
         )
         set_thumbnail(ctx.author, embed)
+        
+        # Claims milestone reward for the member wallet_code
+        webhook = os.getenv("WEBHOOK_MILESTONE_REWARD")
+        code = await self.db.get_wallet_code(ctx.author)
+        await create_milestone_reward_claim(webhook, code)
+
         await ctx.respond(embed=embed)
 
     @slash_command(description="Earn Krykoins")

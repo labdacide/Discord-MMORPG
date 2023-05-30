@@ -5,6 +5,7 @@ import aiosqlite
 import asyncio
 
 from config import FACTIONS
+from utils.thx import create_wallet_code
 
 class Database:
     DB = "divergent.db"
@@ -28,7 +29,8 @@ class Database:
                 hp INTEGER DEFAULT 1,
                 kills INTEGER DEFAULT 0,
                 weapon INTEGER DEFAULT 0,
-                armor INTEGER DEFAULT 0
+                armor INTEGER DEFAULT 0,
+                wallet_code TEXT
                 )"""
             )
             await db.execute(
@@ -67,6 +69,14 @@ class Database:
         async with aiosqlite.connect(self.DB) as db:
             await db.execute(f"UPDATE users SET {value} = {amount} WHERE user_id = ?", (member.id,))
             await db.commit()
+
+    async def set_wallet_code(self, member: discord.Member, code: str):
+        await self.check_member(member)
+        async with aiosqlite.connect(self.DB) as db:
+            await db.execute(f"UPDATE users SET wallet_code = '{code}' WHERE user_id = ?", (member.id,))
+            await db.commit()
+        new_value = await self.get_value(member, "wallet_code")
+        return new_value
 
     async def restore_health(self, member: discord.Member, percent: int):
         await self.check_member(member)
@@ -154,6 +164,13 @@ class Database:
         async with aiosqlite.connect(self.DB) as db:
             await db.execute(f"UPDATE factions SET {value} = {value} + {change} WHERE faction = ?", (faction,))
             await db.commit()
+
+    async def get_wallet_code(self, member: discord.Member):
+        code = await self.get_value(member, "wallet_code")      
+        if (code == None):
+            new_code = await create_wallet_code()
+            await self.set_wallet_code(member, new_code)
+        return code
 
     async def get_max_hp(self, member: discord.Member):
         res = await self.get_value(member, "res")
