@@ -39,6 +39,11 @@ class Actions(commands.Cog):
             color=COLOR
         )
         set_thumbnail(ctx.author, embed)
+        
+        # Claims milestone reward for the member wallet_code
+        code = await self.db.get_wallet_code(ctx.author)
+        await requests.post(os.getenv("WEBHOOK_MILESTONE_REWARD"))
+
         await ctx.respond(embed=embed)
 
     @slash_command(description="Earn Krykoins")

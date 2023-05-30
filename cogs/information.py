@@ -32,6 +32,7 @@ class Information(commands.Cog):
         dmg, cel, cr, dr = await self.db.get_combat_stats(member)
         lvl, xp, kar, kills = await self.db.get_sec_stats(member)
         pow_lvl = await self.db.get_pow_lvl(member)
+        code = await self.db.get_wallet_code(member)
 
         stat_reveal = await self.db.check_item(ctx.author, "stats")
         await self.db.use_item(ctx.author, "stats")
@@ -46,6 +47,9 @@ class Information(commands.Cog):
         set_thumbnail(member, embed)
 
         embed.add_field(name="Power Level", value=f"{pow_lvl:,}")
+        if (code):
+            embed.add_field(name="Wallet Code", value=code)
+
         if faction is not None:
             f_name = get_faction_name(faction)
             embed.add_field(name="Faction", value=f_name)

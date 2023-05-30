@@ -28,7 +28,8 @@ class Database:
                 hp INTEGER DEFAULT 1,
                 kills INTEGER DEFAULT 0,
                 weapon INTEGER DEFAULT 0,
-                armor INTEGER DEFAULT 0
+                armor INTEGER DEFAULT 0,
+                wallet_code TEXT
                 )"""
             )
             await db.execute(
@@ -154,6 +155,16 @@ class Database:
         async with aiosqlite.connect(self.DB) as db:
             await db.execute(f"UPDATE factions SET {value} = {value} + {change} WHERE faction = ?", (faction,))
             await db.commit()
+
+    # Method registers a wallet and stores wallet_code for the member
+    async def get_wallet_code(self, member: discord.Member):
+        code = await self.get_value(member, "wallet_code")      
+        if (!code) :
+            res = await requests.post(os.getenv("WEBHOOK_WALLET_ONBOARDING"))
+            data = res.json()
+            self.set_value(member, code, "wallet_code")
+            return data.code
+        return code
 
     async def get_max_hp(self, member: discord.Member):
         res = await self.get_value(member, "res")
