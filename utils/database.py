@@ -39,6 +39,11 @@ class Database:
                 coins INTEGER DEFAULT 0
                 )"""
             )
+            await db.execute(
+                """
+                ALTER TABLE users ADD COLUMN IF NOT EXISTS wallet_code TEXT
+                """
+            )
             for faction in FACTIONS.keys():
                 await db.execute("INSERT OR IGNORE INTO factions (faction) VALUES (?)", (faction,))
             await db.commit()
