@@ -1,0 +1,22 @@
+# Server Discord ID
+GUILD_IDS = [123456789]
+
+# ROLES Discord ID
+FACTIONS = { 
+     "mars": ,
+     "uranus": ,
+     "jupiter": ,
+     "venus": ,
+     "neptune": ,
+ }
+
+# CHANNELS Discord ID
+CHANNELS
+FACTIONS_CATEGORY = 
+SHOP = 
+FACTION_RAID = 
+LEADERBOARD = 
+
+# VALUES
+CURRENCY = "gold"
+COLOR = 0x00ff00
