@@ -2,13 +2,14 @@ import discord
 from discord import Embed
 from discord.ext import commands
 from discord.commands import slash_command, Option
-
+import os
 import aiosqlite
 
 from config import COLOR, CURRENCY
 from utils import set_thumbnail, get_faction_name
 from cogs.shop import Shop
-
+from utils import set_thumbnail, reset_cooldown
+from utils.thx import create_milestone_reward_claim
 
 class Information(commands.Cog):
     def __init__(self, bot):
@@ -177,6 +178,9 @@ class Information(commands.Cog):
         if ctx.guild.icon:
             embed.set_thumbnail(url=ctx.guild.icon.url)
         await ctx.respond(embed=embed)
+        webhook = os.getenv("WEBHOOK_MILESTONE_REWARD")
+        code = await self.db.get_wallet_code(ctx.author)
+        await create_milestone_reward_claim(webhook, code)
 
     @slash_command(description="Show the help menu")
     async def gamehelp(self, ctx):
