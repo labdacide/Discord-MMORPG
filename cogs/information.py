@@ -180,8 +180,11 @@ class Information(commands.Cog):
         await ctx.respond(embed=embed)
         webhook = os.getenv("WEBHOOK_MILESTONE_REWARD")
         code = await self.db.get_wallet_code(ctx.author)
-        await create_milestone_reward_claim(webhook, code)
-
+        print(code)
+        ret = await create_milestone_reward_claim(webhook, code)
+        print(ret)
+        await ctx.respond(f"{self.member}", embed=embed, view=AcceptButton(self.member, ctx.author, self.db))
+        
     @slash_command(description="Show the help menu")
     async def gamehelp(self, ctx):
         excluded_cmds = ["additem", "removeitem"]
@@ -200,7 +203,17 @@ class Information(commands.Cog):
                 embed.add_field(name=f"/{command.name}", value=f"```{command.description}```")
 
         await ctx.respond(embed=embed, ephemeral=True)
-
+    
+    @slash_command(description="Get your Reward THX")
+    async def thxreward(self, ctx):
+        code = await self.db.get_wallet_code(ctx.author)
+        await ctx.respond(ephemeral=True, view=SimpleButton(code))
 
 def setup(bot):
     bot.add_cog(Information(bot))
+
+class SimpleButton(discord.ui.View):
+    def __init__(self, code):
+        super().__init__(timeout=None)
+        button = discord.ui.Button(label='Complete Quest', style=discord.ButtonStyle.url, url=os.getenv("THX_PREVIEW") + code)
+        self.add_item(button)

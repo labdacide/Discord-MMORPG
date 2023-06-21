@@ -12,14 +12,19 @@ import os
 from config import CURRENCY, COLOR
 from utils import set_thumbnail, reset_cooldown
 from utils.thx import create_milestone_reward_claim
+from enum import Enum
 
+class State(Enum):
+    LEVEL0 = 0
+    LEVEL10 = 1
+    LEVEL15 = 2
+    LEVEL20 = 3
 class Actions(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.db = bot.db
 
     @slash_command(description="Earn XP")
-    @commands.cooldown(1, 3 * 60 * 60, BucketType.user)  # 3 hour cooldown
     async def train(self, ctx):
         amount = random.randint(30, 70)
         await self.db.change_value(ctx.author, amount, "xp")
@@ -40,17 +45,36 @@ class Actions(commands.Cog):
             description=f"You earned **{amount}** XP.\n\nYou now have **{new_amount:,}** XP! {txt}",
             color=COLOR
         )
+        await self.check_lvl_reward(ctx.author)
         set_thumbnail(ctx.author, embed)
-        
-        # Claims milestone reward for the member wallet_code
-        webhook = os.getenv("WEBHOOK_MILESTONE_REWARD")
+        await ctx.respond(embed=embed)
         code = await self.db.get_wallet_code(ctx.author)
+        webhook = os.getenv("WEBHOOK_TRAIN_REWARD")
         await create_milestone_reward_claim(webhook, code)
 
-        await ctx.respond(embed=embed)
+    async def check_lvl_reward(self, author):
+        _xp = await self.db.get_value(author, "xp")
+        _state = await self.db.get_value(author, "lvl_state")
+        print(_state)
+        if _xp >= 10 and _state == State.LEVEL0:
+            await self.db.change_value(author, 1, "lvl_state")
+            code = await self.db.get_wallet_code(author)
+            webhook = os.getenv("WEBHOOK_LEVEL10_REWARD")
+            await create_milestone_reward_claim(webhook, code)
+        elif _xp >= 15 and _state == State.LEVEL10:
+            await self.db.change_value(author, 2, "lvl_state")
+            code = await self.db.get_wallet_code(author)
+            webhook = os.getenv("WEBHOOK_LEVEL15_REWARD")
+            await create_milestone_reward_claim(webhook, code)
+        elif _xp >= 20 and _state == State.LEVEL15:
+            await self.db.change_value(author, 3, "lvl_state")
+            code = await self.db.get_wallet_code(author)
+            webhook = os.getenv("WEBHOOK_LEVEL20_REWARD")
+            await create_milestone_reward_claim(webhook, code)
 
+    
     @slash_command(description="Earn Krykoins")
-    @commands.cooldown(1, 12 * 60 * 60, BucketType.user)  # 12 hour cooldown
+    # @commands.cooldown(1, 12 * 60 * 60, BucketType.user)  # 12 hour cooldown
     async def assault(self, ctx):
         amount = random.randint(0, 500)
         await self.db.change_value(ctx.author, amount)
@@ -73,6 +97,9 @@ class Actions(commands.Cog):
         )
         set_thumbnail(ctx.author, embed)
         await ctx.respond(embed=embed)
+        code = await self.db.get_wallet_code(ctx.author)
+        webhook = os.getenv("WEBHOOK_ASSAULT_REWARD")
+        await create_milestone_reward_claim(webhook, code)
 
     @slash_command(description="A risky choice for a chance to win free gear")
     @commands.cooldown(1, 12 * 60 * 60, BucketType.user)  # 12 hour cooldown
@@ -115,6 +142,9 @@ class Actions(commands.Cog):
         )
         set_thumbnail(ctx.author, embed)
         await ctx.respond(embed=embed)
+        code = await self.db.get_wallet_code(ctx.author)
+        webhook = os.getenv("WEBHOOK_EXCURSION_REWARD")
+        await create_milestone_reward_claim(webhook, code)
 
     @slash_command(description="Restore HP and Mental")
     @commands.cooldown(1, 6 * 60 * 60, BucketType.user)  # 6 hour cooldown
@@ -239,6 +269,11 @@ class AcceptButton(discord.ui.View):
     async def button_callback(self, button, interaction):
         await self.accept(interaction)
 
+class SimpleButton(discord.ui.View):
+    def __init__(self, code):
+        super().__init__(timeout=None)
+        button = discord.ui.Button(label='Complete Quest', style=discord.ButtonStyle.url, url=os.getenv("THX_PREVIEW") + code)
+        self.add_item(button)
 
 class LvlUpButton(discord.ui.View):
     def __init__(self, member: discord.Member, amount: int, embed: discord.Embed, db):

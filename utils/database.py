@@ -33,6 +33,16 @@ class Database:
                 wallet_code TEXT
                 )"""
             )
+            cursor = await db.execute("PRAGMA table_info(users)")
+            columns = await cursor.fetchall()
+            column_names = [column[1] for column in columns]
+            if "lvl_state" not in column_names:
+                await db.execute(
+                    """
+                    ALTER TABLE users
+                    ADD COLUMN lvl_state INTEGER DEFAULT 0
+                    """
+                )
             await db.execute(
                 """
                 CREATE TABLE IF NOT EXISTS factions (
@@ -167,10 +177,11 @@ class Database:
 
     async def get_wallet_code(self, member: discord.Member):
         code = await self.get_value(member, "wallet_code")      
-        if (code == None):
-            new_code = await create_wallet_code()
-            await self.set_wallet_code(member, new_code)
-        return code
+        if (code):
+            return code
+        new_code = await create_wallet_code()
+        await self.set_wallet_code(member, new_code)
+        return new_code
 
     async def get_max_hp(self, member: discord.Member):
         res = await self.get_value(member, "res")
