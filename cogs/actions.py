@@ -54,20 +54,15 @@ class Actions(commands.Cog):
 
     async def check_lvl_reward(self, author):
         _xp = await self.db.get_value(author, "xp")
-        _state = await self.db.get_value(author, "lvl_state")
-        print(_state)
-        if _xp >= 10 and _state == State.LEVEL0:
-            await self.db.change_value(author, 1, "lvl_state")
+        if _xp >= 1931:
             code = await self.db.get_wallet_code(author)
             webhook = os.getenv("WEBHOOK_LEVEL10_REWARD")
             await create_milestone_reward_claim(webhook, code)
-        elif _xp >= 15 and _state == State.LEVEL10:
-            await self.db.change_value(author, 2, "lvl_state")
+        if _xp >= 14661:
             code = await self.db.get_wallet_code(author)
             webhook = os.getenv("WEBHOOK_LEVEL15_REWARD")
             await create_milestone_reward_claim(webhook, code)
-        elif _xp >= 20 and _state == State.LEVEL15:
-            await self.db.change_value(author, 3, "lvl_state")
+        if _xp >= 111339:
             code = await self.db.get_wallet_code(author)
             webhook = os.getenv("WEBHOOK_LEVEL20_REWARD")
             await create_milestone_reward_claim(webhook, code)

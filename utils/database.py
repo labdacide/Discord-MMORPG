@@ -33,16 +33,6 @@ class Database:
                 wallet_code TEXT
                 )"""
             )
-            cursor = await db.execute("PRAGMA table_info(users)")
-            columns = await cursor.fetchall()
-            column_names = [column[1] for column in columns]
-            if "lvl_state" not in column_names:
-                await db.execute(
-                    """
-                    ALTER TABLE users
-                    ADD COLUMN lvl_state INTEGER DEFAULT 0
-                    """
-                )
             await db.execute(
                 """
                 CREATE TABLE IF NOT EXISTS factions (
