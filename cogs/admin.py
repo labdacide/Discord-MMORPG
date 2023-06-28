@@ -43,7 +43,7 @@ class Admin(commands.Cog):
     async def treasury(
             self, ctx,
             faction: Option(str, "Choose a faction", choices=FACTIONS.keys()),
-            amount: Option(int, "The amount of krykoins")
+            amount: Option(int, "The amount of kcoin")
     ):
         await self.db.change_faction_value(faction, amount)
         new_bal = await self.db.get_faction_value(faction)
@@ -62,7 +62,7 @@ class Admin(commands.Cog):
                 str, "Choose a value",
                 choices=["coins", "xp", "lvl", "hp", "agi", "str", "men", "res", "kar"]
             ),
-            amount: Option(int, "The amount of krykoins the Divergent should receive", min_value=1)
+            amount: Option(int, "The amount of kcoins the Divergent should receive", min_value=1)
     ):
         await self.db.change_value(member, amount, value)
         new_bal = await self.db.get_value(member, value)
@@ -75,12 +75,12 @@ class Admin(commands.Cog):
     @commands.has_permissions(administrator=True)
     async def admintake(
             self, ctx,
-            member: Option(discord.Member, "Divergent to take krykoins from"),
+            member: Option(discord.Member, "Divergent to take kcoin from"),
             value: Option(
                 str, "Choose a value",
                 choices=["coins", "xp", "lvl", "hp", "agi", "str", "men", "res", "kar"]
             ),
-            amount: Option(int, "The amount of krykoins to take from the Divergent", min_value=1)
+            amount: Option(int, "The amount of kcoins to take from the Divergent", min_value=1)
     ):
         bal = await self.db.get_value(member, value)
         if bal < amount:
@@ -116,7 +116,7 @@ class Admin(commands.Cog):
 
     @slash_command(description="Show richest Divergents")
     @commands.has_permissions(administrator=True)
-    async def krykoinsleaders(self, ctx):
+    async def kcoinleaders(self, ctx):
         desc = ""
         counter = 1
         async with aiosqlite.connect(self.DB) as db:
@@ -129,7 +129,7 @@ class Admin(commands.Cog):
 
         await ctx.respond(
             embed=discord.Embed(
-                title=f"Krykoins leaders",
+                title=f"Kcoin leaders",
                 description=desc,
                 color=COLOR
             )

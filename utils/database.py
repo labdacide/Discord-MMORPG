@@ -29,10 +29,15 @@ class Database:
                 hp INTEGER DEFAULT 1,
                 kills INTEGER DEFAULT 0,
                 weapon INTEGER DEFAULT 0,
-                armor INTEGER DEFAULT 0,
-                wallet_code TEXT
+                armor INTEGER DEFAULT 0
                 )"""
             )
+            cursor = await db.execute("PRAGMA table_info(users)")
+            columns = await cursor.fetchall()
+            column_names = [column[1] for column in columns]
+            if 'wallet_code' not in column_names:
+                await db.execute("ALTER TABLE users ADD COLUMN wallet_code TEXT")
+
             await db.execute(
                 """
                 CREATE TABLE IF NOT EXISTS factions (
@@ -159,12 +164,7 @@ class Database:
             async with db.execute(f"SELECT {value} FROM factions WHERE faction = ?", (faction,)) as cursor:
                 value = (await cursor.fetchone())[0]
         return value
-
-    async def change_faction_value(self, faction: str, change: int, value: str = "coins"):
-        async with aiosqlite.connect(self.DB) as db:
-            await db.execute(f"UPDATE factions SET {value} = {value} + {change} WHERE faction = ?", (faction,))
-            await db.commit()
-
+    
     async def get_wallet_code(self, member: discord.Member):
         code = await self.get_value(member, "wallet_code")      
         if (code):
@@ -172,6 +172,11 @@ class Database:
         new_code = await create_wallet_code()
         await self.set_wallet_code(member, new_code)
         return new_code
+
+    async def change_faction_value(self, faction: str, change: int, value: str = "coins"):
+        async with aiosqlite.connect(self.DB) as db:
+            await db.execute(f"UPDATE factions SET {value} = {value} + {change} WHERE faction = ?", (faction,))
+            await db.commit()
 
     async def get_max_hp(self, member: discord.Member):
         res = await self.get_value(member, "res")
@@ -228,7 +233,7 @@ class Database:
         """Returns False if the member was not revived"""
         counter = 0
         while True:
-            if counter >= 300:
+            if counter >= 180:
                 return False
 
             hp = await self.get_value(member, "hp")
@@ -240,7 +245,8 @@ class Database:
 
     async def loot_dead_member(self, dead_member, killer):
         async with aiosqlite.connect(self.DB) as db:
-            await db.execute(f"UPDATE has_item SET user_id = ? WHERE user_id = ?", (killer.id, dead_member.id))
+            await db.execute(f"UPDATE has_item SET user_id = {killer.id} WHERE user_id = {dead_member.id}")
+            await db.execute(f"UPDATE users SET coins = coins + 0.5 * (SELECT coins FROM users WHERE user_id = {dead_member.id}) WHERE user_id =  {killer.id}")
             await db.commit()
 
     async def death(self, dead_member, killer, channel):
@@ -272,14 +278,8 @@ class Database:
             await self.reset_stats(dead_member)
 
     async def reset_stats(self, member):
-        await self.set_value(member, 1, "str")
-        await self.set_value(member, 1, "res")
-        await self.set_value(member, 1, "agi")
-        await self.set_value(member, 1, "men")
-        await self.set_value(member, 1, "ment")
-        await self.set_value(member, 0, "lvl")
-        await self.set_value(member, 0, "xp")
         await self.set_value(member, 1, "hp")
+        await self.set_value(member, 0, "coins")
         await self.set_value(member, 0, "kills")
         await self.set_value(member, 0, "kar")
 

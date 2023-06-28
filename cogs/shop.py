@@ -57,6 +57,16 @@ async def autocomplete_owned_gear(ctx: discord.AutocompleteContext):
                 items.append(item[0])
     return list(Counter(items).keys())
 
+async def autocomplete_equipped_gear(ctx: discord.AutocompleteContext):
+    items = []
+    async with aiosqlite.connect(SHOP_DB) as db:
+        async with db.execute("""SELECT name FROM has_item, items WHERE user_id = ?
+        AND items.id = has_item.item_id AND (uses_left > 0 OR uses_left IS NULL)
+        AND (type = 'armor' OR type = 'weapon') AND is_active=1""", (ctx.interaction.user.id,)) as cursor:
+            async for item in cursor:
+                items.append(item[0])
+    return list(Counter(items).keys())
+
 
 class Shop(commands.Cog):
     def __init__(self, bot):
@@ -141,6 +151,24 @@ class Shop(commands.Cog):
                 async for item in cursor:
                     items.append(item[0])
         return items
+
+    @staticmethod
+    async def get_equipped_weapon(member):
+        async with aiosqlite.connect(SHOP_DB) as db:
+            async with db.execute("""SELECT name FROM has_item, items WHERE user_id = ?
+            AND items.id = has_item.item_id AND is_active =1 AND (uses_left > 0 OR uses_left IS NULL)
+            AND type = 'weapon'""", (member.id,)) as cursor:
+                async for item in cursor:
+                    return item[0]
+
+    @staticmethod
+    async def get_equipped_armor(member):
+        async with aiosqlite.connect(SHOP_DB) as db:
+            async with db.execute("""SELECT name FROM has_item, items WHERE user_id = ?
+            AND items.id = has_item.item_id AND is_active =1 AND (uses_left > 0 OR uses_left IS NULL)
+            AND type = 'armor'""", (member.id,)) as cursor:
+                async for item in cursor:
+                    return item[0]
 
     async def get_inventory_string(self, member) -> str:
         owned_items = await Shop.get_all_owned_items(member)
@@ -272,9 +300,7 @@ class Shop(commands.Cog):
 
         if is_active == 0:
             async with aiosqlite.connect(SHOP_DB, detect_types=PARSE_DECLTYPES) as db:
-                await db.execute(
-                    """UPDATE has_item SET is_active = 1, end = ?, uses_left = ? WHERE id = ?""",
-                    (expire_time, uses_left, item_own_id))
+                await db.execute(f"""UPDATE has_item SET is_active = 1, end = ?, uses_left = ? WHERE id = ?""",(expire_time, uses_left, item_own_id))
                 await db.commit()
 
         # add effect to user
@@ -342,7 +368,7 @@ class Shop(commands.Cog):
 
         for _id in items[:amount]:
             async with aiosqlite.connect(SHOP_DB) as db:
-                await db.execute("""UPDATE has_item SET user_id = ? WHERE id = ?""", (member.id, _id,))
+                await db.execute(f"""UPDATE has_item SET user_id = ? WHERE id = ?""", (member.id, _id,))
                 await db.commit()
 
         embed = Embed(
@@ -354,14 +380,14 @@ class Shop(commands.Cog):
         embed.set_thumbnail(url=image_url)
         await try_embed(ctx, embed)
 
-    @slash_command(description="Give krykoins to another user")
-    async def givekrykoins(
+    @slash_command(description="Give kcoins to another user")
+    async def givekcoin(
             self, ctx,
             member: Option(discord.Member, "Specify a Divergent"),
-            amount: Option(int, "The amount of krykoins", min_value=1)
+            amount: Option(int, "The amount of kcoins", min_value=1)
     ):
         if ctx.author.id == member.id:
-            await ctx.respond("You can't give yourself krykoins.", ephemeral=True)
+            await ctx.respond("You can't give yourself kcoins.", ephemeral=True)
             return
 
         coins = await self.db.get_value(ctx.author)
@@ -373,7 +399,7 @@ class Shop(commands.Cog):
         await self.db.change_value(member, amount, enable_tax=False)
 
         embed = Embed(
-            title="Krykoins sent",
+            title="Kcoins sent",
             description=f"You sent **{amount:,}** {CURRENCY} to {member.mention}.",
             color=COLOR
         )
@@ -393,19 +419,39 @@ class Shop(commands.Cog):
         if gear_type is None:
             await ctx.respond("This item does not exist", ephemeral=True)
             return
-
+ 
         gear_id = await self.db.get_gear_id(ctx.author, gear_type)
 
         async with aiosqlite.connect(SHOP_DB) as db:
-            await db.execute(f"""UPDATE users SET {gear_type} = (SELECT id FROM items WHERE name = ?) 
-                             WHERE user_id = ?""", (gear, ctx.author.id))
-            await db.execute(
-                """UPDATE has_item SET is_active = 1, end = ?, uses_left = (SELECT duration FROM items WHERE id = ?)
-                WHERE item_id = ? AND user_id = ?""",
-                (datetime.utcnow(), gear_id, gear_id, ctx.author.id))
+            await db.execute(f"""UPDATE has_item SET is_active = 0 WHERE item_id IN (SELECT id FROM items WHERE type IS (SELECT type FROM items WHERE name = ?)) AND is_active = 1 AND user_id = ?""",(gear, ctx.author.id,))
+            await db.execute(f"""UPDATE has_item SET is_active = 1, end = ?, uses_left = (SELECT duration FROM items WHERE id = (SELECT id FROM items WHERE name = ?)) WHERE item_id = (SELECT id FROM items WHERE name = ?) AND user_id = ?""", (datetime.utcnow(), gear, gear, ctx.author.id))
+            await db.execute(f"""UPDATE users SET {gear_type} = (SELECT id FROM items WHERE name = ?) WHERE user_id = ?""", (gear, ctx.author.id))
             await db.commit()
 
         await ctx.respond(f"You equipped **{gear}**")
+
+    @slash_command(description="Unequip your gear")
+    async def unequip(
+            self, ctx,
+            gear: Option(str, "The gear you want to remove", autocomplete=basic_autocomplete(autocomplete_equipped_gear))
+    ):
+        if gear not in (await self.get_equipped_armor(ctx.author) or await self.get_equipped_weapon(ctx.author)):
+            await ctx.respond("You don't equip this gear", ephemeral=True)
+            return
+
+        gear_type = await self.db.get_gear_type(gear)
+        if gear_type is None:
+            await ctx.respond("This item does not exist", ephemeral=True)
+            return
+ 
+        gear_id = await self.db.get_gear_id(ctx.author, gear_type)
+
+        async with aiosqlite.connect(SHOP_DB) as db:
+            await db.execute(f"""UPDATE has_item SET is_active = 0, end = ?, uses_left = (SELECT duration FROM items WHERE id = (SELECT id FROM items WHERE name = ?)) WHERE item_id = (SELECT id FROM items WHERE name = ?) AND user_id = ?""", (datetime.utcnow(), gear, gear, ctx.author.id))
+            await db.execute(f"""UPDATE users SET {gear_type} = (SELECT id FROM items WHERE name = ?) WHERE user_id = ?""", (gear, ctx.author.id))
+            await db.commit()
+
+        await ctx.respond(f"You unequipped **{gear}**")    
 
     @slash_command(description="Add an item to the shop")
     @commands.has_permissions(administrator=True)
@@ -413,7 +459,7 @@ class Shop(commands.Cog):
             self, ctx,
             name: Option(str, "Name of the item"),
             image: Option(discord.Attachment, "The item picture"),
-            price: Option(int, "Price in krykoins"),
+            price: Option(int, "Price in kcoins"),
             effect: Option(
                 str, "The effect of the item",
                 choices=["str", "res", "agi", "ment", "hp", "xp", "kar", "revive"]

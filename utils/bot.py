@@ -11,8 +11,9 @@ from utils import Database, WrongChannel, Dead, reset_cooldown
 intents = discord.Intents.default()
 intents.members = True
 
-shop = ["buy", "shop", "givegold", "giveitem"]
+shop = ["buy", "shop", "givekcoin", "giveitem"]
 faction_raid = ["factionraid"]
+level_up = ["levelup"]
 leaderboard = ["factionleaderboard", "mainleaderboard"]
 
 
@@ -31,14 +32,16 @@ class Bot(commands.Bot):
             cmd = ctx.command.name
             if ctx.channel.id != THX_REWARD and cmd == "thxreward":
                 raise WrongChannel()
-            if ctx.channel.id == SHOP and cmd not in ["buy", "shop", "givegold", "giveitem"]:
+            if ctx.channel.id == SHOP and cmd not in ["buy", "shop", "givekcoin", "giveitem"]:
+                raise WrongChannel()
+            if ctx.channel.id == LEVEL_UP and cmd not in ["levelup"]:
                 raise WrongChannel()
             if ctx.channel.id == FACTION_RAID and cmd not in ["factionraid"]:
                 raise WrongChannel()
             if ctx.channel.id == LEADERBOARD and cmd not in ["factionleaderboard", "mainleaderboard"]:
                 raise WrongChannel()
-            if ctx.channel.id not in [SHOP, FACTION_RAID, LEADERBOARD]:
-                if cmd in shop or cmd in faction_raid or cmd in leaderboard:
+            if ctx.channel.id not in [SHOP, FACTION_RAID, LEVEL_UP, LEADERBOARD]:
+                if cmd in shop or cmd in level_up or cmd in faction_raid or cmd in leaderboard:
                     raise WrongChannel()
 
             hp = await self.db.get_value(ctx.author, "hp")

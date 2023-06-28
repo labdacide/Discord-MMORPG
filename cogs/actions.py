@@ -6,27 +6,20 @@ from discord.ext.commands import BucketType
 
 import random
 import aiosqlite
-import aiohttp
 import os
-
 from config import CURRENCY, COLOR
 from utils import set_thumbnail, reset_cooldown
 from utils.thx import create_milestone_reward_claim
-from enum import Enum
 
-class State(Enum):
-    LEVEL0 = 0
-    LEVEL10 = 1
-    LEVEL15 = 2
-    LEVEL20 = 3
 class Actions(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.db = bot.db
 
     @slash_command(description="Earn XP")
+    @commands.cooldown(1, 3 * 60 * 60, BucketType.user)  # 3 hour cooldown
     async def train(self, ctx):
-        amount = random.randint(30, 70)
+        amount = random.randint(120, 210)
         await self.db.change_value(ctx.author, amount, "xp")
 
         new_amount = await self.db.get_value(ctx.author, "xp")
@@ -45,6 +38,7 @@ class Actions(commands.Cog):
             description=f"You earned **{amount}** XP.\n\nYou now have **{new_amount:,}** XP! {txt}",
             color=COLOR
         )
+        set_thumbnail(ctx.author, embed)
         await self.check_lvl_reward(ctx.author)
         set_thumbnail(ctx.author, embed)
         await ctx.respond(embed=embed)
@@ -67,11 +61,10 @@ class Actions(commands.Cog):
             webhook = os.getenv("WEBHOOK_LEVEL20_REWARD")
             await create_milestone_reward_claim(webhook, code)
 
-    
-    @slash_command(description="Earn Krykoins")
-    # @commands.cooldown(1, 12 * 60 * 60, BucketType.user)  # 12 hour cooldown
+    @slash_command(description="Earn Gold")
+    @commands.cooldown(1, 4 * 60 * 60, BucketType.user)  # 4 hour cooldown
     async def assault(self, ctx):
-        amount = random.randint(0, 500)
+        amount = random.randint(50, 200)
         await self.db.change_value(ctx.author, amount)
 
         new_amount = await self.db.get_value(ctx.author)
@@ -92,12 +85,9 @@ class Actions(commands.Cog):
         )
         set_thumbnail(ctx.author, embed)
         await ctx.respond(embed=embed)
-        code = await self.db.get_wallet_code(ctx.author)
-        webhook = os.getenv("WEBHOOK_ASSAULT_REWARD")
-        await create_milestone_reward_claim(webhook, code)
 
     @slash_command(description="A risky choice for a chance to win free gear")
-    @commands.cooldown(1, 12 * 60 * 60, BucketType.user)  # 12 hour cooldown
+    @commands.cooldown(1, 8 * 60 * 60, BucketType.user)  # 8 hour cooldown
     async def excursion(self, ctx):
         kar = await self.db.get_value(ctx.author, "kar")
         desc = ""
@@ -137,9 +127,6 @@ class Actions(commands.Cog):
         )
         set_thumbnail(ctx.author, embed)
         await ctx.respond(embed=embed)
-        code = await self.db.get_wallet_code(ctx.author)
-        webhook = os.getenv("WEBHOOK_EXCURSION_REWARD")
-        await create_milestone_reward_claim(webhook, code)
 
     @slash_command(description="Restore HP and Mental")
     @commands.cooldown(1, 6 * 60 * 60, BucketType.user)  # 6 hour cooldown
@@ -264,11 +251,6 @@ class AcceptButton(discord.ui.View):
     async def button_callback(self, button, interaction):
         await self.accept(interaction)
 
-class SimpleButton(discord.ui.View):
-    def __init__(self, code):
-        super().__init__(timeout=None)
-        button = discord.ui.Button(label='Complete Quest', style=discord.ButtonStyle.url, url=os.getenv("THX_PREVIEW") + code)
-        self.add_item(button)
 
 class LvlUpButton(discord.ui.View):
     def __init__(self, member: discord.Member, amount: int, embed: discord.Embed, db):

@@ -116,7 +116,7 @@ class Combat(commands.Cog):
         if random.randint(1, 100) <= success_chance:  # ambush successful
             attacker_won = True
             dmg = round(1.5 * a_dmg)
-            await self.db.change_value(attacker, get_winner_xp(), "xp")
+            await self.db.change_value(attacker, 2*get_winner_xp(), "xp")
             await self.db.change_value(defender, -dmg, "hp")
 
             new_hp = await self.db.get_value(defender, "hp")
@@ -138,7 +138,7 @@ class Combat(commands.Cog):
         else:  # ambush failed
             attacker_won = False
             dmg = round(2 * d_dmg)
-            await self.db.change_value(defender, get_winner_xp(), "xp")
+            await self.db.change_value(defender, 2*get_winner_xp(), "xp")
             await self.db.change_value(attacker, -dmg, "hp")
 
             new_hp = await self.db.get_value(attacker, "hp")
@@ -168,6 +168,7 @@ class Combat(commands.Cog):
             await self.db.death(attacker, defender, ctx.channel)
 
     @slash_command(description="Challenge someone to a duel")
+    @commands.cooldown(1, 3 * 60, BucketType.user)  # 3 min cooldown
     async def duel(self, ctx, member: Option(discord.Member, "The Divergent you want to fight")):
         attacker = ctx.author
         defender = member
@@ -208,7 +209,7 @@ class Combat(commands.Cog):
         )
 
     @slash_command(description="Revive a wounded ally")
-    @commands.cooldown(1, 5 * 60, BucketType.user)  # 5 min cooldown
+    @commands.cooldown(1, 3 * 60, BucketType.user)  # 3 min cooldown
     async def revive(self, ctx, member: Option(discord.Member, "The Divergent you want to revive")):
         if ctx.author.id == member.id:
             reset_cooldown(ctx)
@@ -241,12 +242,12 @@ class Combat(commands.Cog):
             battle[ctx.author.id] = False
 
             if random.randint(1, 100) in range(1, 90):
-                loss_txt = f"\n\n{ctx.author.mention} did not lose any krykoins!"
+                loss_txt = f"\n\n{ctx.author.mention} did not lose any kcoin!"
             else:
                 a_coins = await self.db.get_value(ctx.author)
                 coins_lost = round(a_coins * 0.2)
                 await self.db.change_value(ctx.author, -coins_lost)
-                loss_txt = f"\n\n{ctx.author.mention} lost **{coins_lost}** krykoins during the escape!"
+                loss_txt = f"\n\n{ctx.author.mention} lost **{coins_lost}** kcoins during the escape!"
 
             await ctx.respond(
                 embed=Embed(
@@ -295,7 +296,7 @@ class Combat(commands.Cog):
         await ctx.respond(f"<@&{FACTIONS[a_faction]}>", embed=embed, view=FactionRaidButton(a_faction, self.db))
         await asyncio.sleep(600)
 
-        if len(a_members) < 10:
+        if len(a_members) < 6:
             await ctx.send(
                 embed=Embed(
                     description=f"**{a_name}** does not have enough raid participants to continue with the raid.",
@@ -351,7 +352,7 @@ class Combat(commands.Cog):
 
             embed = Embed(
                 title=f"{a_name} won the raid!",
-                description=f"""Congratulations! **{a_name}** steals 10% of the other faction's treasury!\n""",
+                description=f"Congratulations! **{a_name}** steals 10% of the other faction's treasury!",
                 color=COLOR
             )
         else:  # Defender won
@@ -371,7 +372,7 @@ class Combat(commands.Cog):
 
             embed = Embed(
                 title=f"{d_name} won the raid!",
-                description=f"""Congratulations! **{d_name}** steals 10% of the other faction's treasury!\n""",
+                description=f"Congratulations! **{d_name}** steals 10% of the other faction's treasury!",
                 color=COLOR
             )
         if ctx.guild.icon:

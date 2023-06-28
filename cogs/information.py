@@ -2,14 +2,14 @@ import discord
 from discord import Embed
 from discord.ext import commands
 from discord.commands import slash_command, Option
-import os
+
 import aiosqlite
+import os
 
 from config import COLOR, CURRENCY
 from utils import set_thumbnail, get_faction_name
 from cogs.shop import Shop
-from utils import set_thumbnail, reset_cooldown
-from utils.thx import create_milestone_reward_claim
+
 
 class Information(commands.Cog):
     def __init__(self, bot):
@@ -29,16 +29,19 @@ class Information(commands.Cog):
         max_hp = await self.db.get_max_hp(member)
         faction = await self.db.check_faction(member)
 
+        armor = await Shop.get_equipped_armor(member)
+        weapon = await Shop.get_equipped_weapon(member)
+
         _str, res, agi, men, ment = await self.db.get_base_stats(member)
         dmg, cel, cr, dr = await self.db.get_combat_stats(member)
         lvl, xp, kar, kills = await self.db.get_sec_stats(member)
         pow_lvl = await self.db.get_pow_lvl(member)
-        code = await self.db.get_wallet_code(member)
 
         stat_reveal = await self.db.check_item(ctx.author, "stats")
         await self.db.use_item(ctx.author, "stats")
         can_lvl_up = await self.db.lvl_up_available(member)
         lvl_up_txt = "*(level up available)*" if can_lvl_up else ""
+
 
         embed = Embed(
             title="Human Divergence",
@@ -48,9 +51,6 @@ class Information(commands.Cog):
         set_thumbnail(member, embed)
 
         embed.add_field(name="Power Level", value=f"{pow_lvl:,}")
-        if (code):
-            embed.add_field(name="Wallet Code", value=code)
-
         if faction is not None:
             f_name = get_faction_name(faction)
             embed.add_field(name="Faction", value=f_name)
@@ -68,6 +68,9 @@ class Information(commands.Cog):
                 value=f"Damage: `{dmg}`\nInitiative: `{cel}`\nKills: `{kills}`\n"
                       f"Critical Rate: `{round(cr, 1)}%`\nDodge Rate: `{round(dr, 1)}%`"
             )
+            embed.add_field(
+                name="Active Gears",
+                value=f"Weapon:`{weapon}`\nArmor: `{armor}`\n")
             embed.add_field(name="Karma", value=kar)
 
         if stat_reveal:
@@ -103,10 +106,10 @@ class Information(commands.Cog):
 
         async with aiosqlite.connect(self.DB) as db:
             async with db.execute(
-                    f"""SELECT user_id, {self.db.get_power_level_sql()} FROM users 
+                    f"""SELECT user_id, faction, {self.db.get_power_level_sql()} FROM users 
                     ORDER BY {self.db.get_power_level_sql()} DESC LIMIT 20""") as cursor:
-                async for user_id, pow_lvl in cursor:
-                    leaderboard += f"`{counter}.` <@{user_id}> - {round(pow_lvl):,}\n"
+                async for user_id, faction, pow_lvl in cursor:
+                    leaderboard += f"`{counter}.` <@{user_id}> - {round(pow_lvl):,} - {faction}\n"
                     counter += 1
 
         embed = Embed(
@@ -129,7 +132,7 @@ class Information(commands.Cog):
         coins = await self.db.get_value(member)
 
         embed = Embed(title="Balance",
-                      description=f"""{member.mention} has **{coins:,}** krykoins.""",
+                      description=f"""{member.mention} has **{coins:,}** kcoins.""",
                       color=COLOR)
         set_thumbnail(member, embed)
         await ctx.respond(embed=embed, ephemeral=True)
@@ -178,13 +181,7 @@ class Information(commands.Cog):
         if ctx.guild.icon:
             embed.set_thumbnail(url=ctx.guild.icon.url)
         await ctx.respond(embed=embed)
-        webhook = os.getenv("WEBHOOK_MILESTONE_REWARD")
-        code = await self.db.get_wallet_code(ctx.author)
-        print(code)
-        ret = await create_milestone_reward_claim(webhook, code)
-        print(ret)
-        await ctx.respond(f"{self.member}", embed=embed, view=AcceptButton(self.member, ctx.author, self.db))
-        
+
     @slash_command(description="Show the help menu")
     async def gamehelp(self, ctx):
         excluded_cmds = ["additem", "removeitem"]
@@ -203,7 +200,7 @@ class Information(commands.Cog):
                 embed.add_field(name=f"/{command.name}", value=f"```{command.description}```")
 
         await ctx.respond(embed=embed, ephemeral=True)
-    
+
     @slash_command(description="Get your Reward THX")
     async def thxreward(self, ctx):
         code = await self.db.get_wallet_code(ctx.author)
