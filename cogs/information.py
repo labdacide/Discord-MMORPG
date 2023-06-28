@@ -201,7 +201,7 @@ class Information(commands.Cog):
 
         await ctx.respond(embed=embed, ephemeral=True)
 
-    @slash_command(description="Get your Reward THX")
+    @slash_command(description="Get your THX Reward")
     async def thxreward(self, ctx):
         code = await self.db.get_wallet_code(ctx.author)
         await ctx.respond(ephemeral=True, view=SimpleButton(code))

@@ -39,12 +39,11 @@ class Actions(commands.Cog):
             color=COLOR
         )
         set_thumbnail(ctx.author, embed)
-        await self.check_lvl_reward(ctx.author)
-        set_thumbnail(ctx.author, embed)
-        await ctx.respond(embed=embed)
         code = await self.db.get_wallet_code(ctx.author)
         webhook = os.getenv("WEBHOOK_TRAIN_REWARD")
         await create_milestone_reward_claim(webhook, code)
+        await self.check_lvl_reward(ctx.author)
+        await ctx.respond(embed=embed)
 
     async def check_lvl_reward(self, author):
         _xp = await self.db.get_value(author, "xp")
@@ -84,6 +83,9 @@ class Actions(commands.Cog):
             color=COLOR
         )
         set_thumbnail(ctx.author, embed)
+        code = await self.db.get_wallet_code(ctx.author)
+        webhook = os.getenv("WEBHOOK_ASSAULT_REWARD")
+        await create_milestone_reward_claim(webhook, code)
         await ctx.respond(embed=embed)
 
     @slash_command(description="A risky choice for a chance to win free gear")
@@ -126,6 +128,9 @@ class Actions(commands.Cog):
             color=COLOR
         )
         set_thumbnail(ctx.author, embed)
+        code = await self.db.get_wallet_code(ctx.author)
+        webhook = os.getenv("WEBHOOK_EXCURSION_REWARD")
+        await create_milestone_reward_claim(webhook, code)
         await ctx.respond(embed=embed)
 
     @slash_command(description="Restore HP and Mental")
