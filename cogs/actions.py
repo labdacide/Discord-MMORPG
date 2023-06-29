@@ -297,8 +297,9 @@ class LvlUpButton(discord.ui.View):
             await self.db.change_value(self.member, 1, "lvl")
             await self.db.restore_health(self.member, 100)  # health is fully restored
             return
-
+        self.embed.description = f"Please, allocate {self.counter}/{self.amount} points to level up"
         await interaction.message.edit(embed=self.embed)
+        await interaction.response.defer()
 
     @discord.ui.button(label="Strength", style=discord.ButtonStyle.grey, custom_id="str")
     async def button_callback1(self, button, interaction):
