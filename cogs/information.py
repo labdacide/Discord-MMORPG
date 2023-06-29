@@ -201,16 +201,6 @@ class Information(commands.Cog):
 
         await ctx.respond(embed=embed, ephemeral=True)
 
-    @slash_command(description="Get your THX Reward")
-    async def thxreward(self, ctx):
-        code = await self.db.get_wallet_code(ctx.author)
-        await ctx.respond(ephemeral=True, view=SimpleButton(code))
 
 def setup(bot):
     bot.add_cog(Information(bot))
-
-class SimpleButton(discord.ui.View):
-    def __init__(self, code):
-        super().__init__(timeout=None)
-        button = discord.ui.Button(label='Complete Quest', style=discord.ButtonStyle.url, url=os.getenv("THX_PREVIEW") + code)
-        self.add_item(button)

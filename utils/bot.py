@@ -30,7 +30,7 @@ class Bot(commands.Bot):
         @self.before_invoke
         async def before_invoke(ctx):
             cmd = ctx.command.name
-            if ctx.channel.id != THX_REWARD and cmd == "thxreward":
+            if ctx.channel.id != THX_REWARD and cmd == ["thxreward", "transferthx"]:
                 raise WrongChannel()
             if ctx.channel.id == SHOP and cmd not in ["buy", "shop", "givekcoin", "giveitem"]:
                 raise WrongChannel()
