@@ -316,6 +316,17 @@ class Database:
                     return None
         return result[0]
 
+    async def get_gear_id_hasitem(self, member, gear_name):
+        async with aiosqlite.connect(self.DB) as db:
+            async with db.execute(
+                """SELECT items.id FROM items 
+                WHERE items.name = ?""", (gear_name,)
+            ) as cursor:
+                result = await cursor.fetchone()
+                if result is None:
+                    return None
+        return result[0]
+
     async def get_gear_value(self, member, gear_type: str):
         gear_id = await self.get_gear_id(member, gear_type)
         if gear_id is None:
@@ -359,7 +370,20 @@ class Database:
                     return 0
                 else:
                     return result[0]
-
+    
+    async def get_item_duration(self, member, gear_name) -> int:
+        async with aiosqlite.connect(self.DB) as db:
+            async with db.execute(
+                """SELECT duration FROM items
+                WHERE name = ?""",
+                (gear_name,)
+            ) as cursor:
+                result = await cursor.fetchone()
+                if result is None:
+                    return 0
+                else:
+                    return result[0]
+    
     async def get_gear_type(self, gear_name: str):
         async with aiosqlite.connect(self.DB) as db:
             async with db.execute(f"""SELECT type FROM items WHERE name = ?""", (gear_name,)) as cursor:
@@ -369,14 +393,34 @@ class Database:
 
         return result[0]
 
+    async def get_gear_value_byid(self, gear_id: int):
+        async with aiosqlite.connect(self.DB) as db:
+            async with db.execute(f"""SELECT price FROM items WHERE id = ?""", (gear_id,)) as cursor:
+                result = await cursor.fetchone()
+                if result is None:
+                    return None
+        return result[0]
+
     async def get_item_image(self, item):
         async with aiosqlite.connect(self.DB) as db:
             async with db.execute("SELECT image FROM items WHERE name = ?", (item,)) as cursor:
                 result = await cursor.fetchone()
                 if result is None:
                     return None
-
         return result[0]
+
+    async def get_owned_items_by_name(user_id, item_name):
+        items = []
+        async with aiosqlite.connect(SHOP_DB) as db:
+            async with db.execute(
+                "SELECT items.name, has_item.gear_id FROM has_item, items WHERE has_item.user_id = ? AND items.id = has_item.item_id AND has_item.user_id = ? AND items.name = ?",
+                (user_id, user_id, item_name),
+            ) as cursor:
+                async for row in cursor:
+                    item_name = row[0]
+                    gear_id = row[1]
+                    items.append({"name": item_name, "gear_id": gear_id})
+        return items
 
     async def use_item(self, member, effect):
         async with aiosqlite.connect(self.DB) as db:
@@ -425,6 +469,15 @@ class Database:
             return False
         return True
 
+    async def remove_item(self, member, item_id):
+        """Remove item from user's inventory with the user id and the id of the item."""
+        async with aiosqlite.connect(self.DB) as db:
+            await db.execute(
+                "DELETE FROM has_item WHERE user_id = ? AND id = ?",
+                (member.id, item_id)
+            )
+            await db.commit()
+
     async def remove_old_items(self):
         async with aiosqlite.connect(self.DB) as db:
             async with db.execute(
@@ -437,3 +490,4 @@ class Database:
                 async for has_item_id in cursor:
                     await db.execute("DELETE FROM has_item WHERE id = ?", (has_item_id[0],))
                 await db.commit()
+    

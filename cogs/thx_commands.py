@@ -22,15 +22,14 @@ class Thxcommands(commands.Cog):
         code = await self.db.get_wallet_code(ctx.author)
         await ctx.respond(ephemeral=True, view=SimpleButton(code))
     
-    @slash_command(description="Transfer 1000 Kcoins to 100 on your THX Wallet")
-    # @commands.cooldown(1, 12 * 60 * 60, BucketType.user)
+    @slash_command(description="Transfer 1000 Kcoins to 100 points on your THX Wallet")
+    @commands.cooldown(1, 12 * 60 * 60, BucketType.user) # 12 hours
     async def transferthx(self, ctx):
         coins = await self.db.get_value(ctx.author)
         if coins >= 1000:
             # code = await self.db.get_wallet_code(ctx.author)
             # webhook = os.getenv("WEBHOOK_TRAIN_REWARD")
             # await create_milestone_reward_claim(webhook, code)
-            # await self.check_lvl_reward(ctx.author)
             embed = Embed(
                 title="You got your THX Reward!",
                 description=f"Check your THX Wallet to see your reward!",

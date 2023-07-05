@@ -57,6 +57,7 @@ async def autocomplete_owned_gear(ctx: discord.AutocompleteContext):
                 items.append(item[0])
     return list(Counter(items).keys())
 
+
 async def autocomplete_equipped_gear(ctx: discord.AutocompleteContext):
     items = []
     async with aiosqlite.connect(SHOP_DB) as db:
@@ -421,7 +422,6 @@ class Shop(commands.Cog):
             return
  
         gear_id = await self.db.get_gear_id(ctx.author, gear_type)
-
         async with aiosqlite.connect(SHOP_DB) as db:
             await db.execute(f"""UPDATE has_item SET is_active = 0 WHERE item_id IN (SELECT id FROM items WHERE type IS (SELECT type FROM items WHERE name = ?)) AND is_active = 1 AND user_id = ?""",(gear, ctx.author.id,))
             await db.execute(f"""UPDATE has_item SET is_active = 1, end = ?, uses_left = (SELECT duration FROM items WHERE id = (SELECT id FROM items WHERE name = ?)) WHERE item_id = (SELECT id FROM items WHERE name = ?) AND user_id = ?""", (datetime.utcnow(), gear, gear, ctx.author.id))
@@ -435,9 +435,15 @@ class Shop(commands.Cog):
             self, ctx,
             gear: Option(str, "The gear you want to remove", autocomplete=basic_autocomplete(autocomplete_equipped_gear))
     ):
-        if gear not in (await self.get_equipped_armor(ctx.author) or await self.get_equipped_weapon(ctx.author)):
-            await ctx.respond("You don't equip this gear", ephemeral=True)
-            return
+        get_armor = await self.get_equipped_armor(ctx.author)
+        get_weapon =  await self.get_equipped_weapon(ctx.author)
+        if get_armor is None or get_weapon is  None:
+            if gear not in get_armor or gear not in get_weapon:
+                await ctx.respond("You don't equip this gear", ephemeral=True)
+                return
+        # if gear not in :
+        #     await ctx.respond("You don't equip this gear", ephemeral=True)
+        #     return
 
         gear_type = await self.db.get_gear_type(gear)
         if gear_type is None:
@@ -445,7 +451,6 @@ class Shop(commands.Cog):
             return
  
         gear_id = await self.db.get_gear_id(ctx.author, gear_type)
-
         async with aiosqlite.connect(SHOP_DB) as db:
             await db.execute(f"""UPDATE has_item SET is_active = 0, end = ?, uses_left = (SELECT duration FROM items WHERE id = (SELECT id FROM items WHERE name = ?)) WHERE item_id = (SELECT id FROM items WHERE name = ?) AND user_id = ?""", (datetime.utcnow(), gear, gear, ctx.author.id))
             await db.execute(f"""UPDATE users SET {gear_type} = (SELECT id FROM items WHERE name = ?) WHERE user_id = ?""", (gear, ctx.author.id))
@@ -499,7 +504,7 @@ class Shop(commands.Cog):
                 (name, image.url, price, gear_type, effect, effect_value, uses, "uses"))
             await db.commit()
 
-        await ctx.respond(f"Gear **{name}** added successfully!")
+        await ctx.respond(f"Gear **{name}** added successfully!", ephemeral=True)
 
     @slash_command(description="Add a special item to the shop")
     @commands.has_permissions(administrator=True)
@@ -539,6 +544,69 @@ class Shop(commands.Cog):
 
         await ctx.respond(f"Item **{item}** deleted successfully!", ephemeral=True)
         
+    @slash_command(description="Sell your activie gear")
+    async def sell(
+            self, ctx,
+            gear: Option(str, "The gear you want to sell (need to be equiped)", autocomplete=basic_autocomplete(autocomplete_owned_gear))
+        ):
+        """
+            Sell an active gear
+        """
+        if gear not in await self.get_owned_gear(ctx.author):
+            await ctx.respond("You don't own this gear", ephemeral=True)
+            return
+
+        gear_type = await self.db.get_gear_type(gear)
+        if gear_type is None:
+            await ctx.respond("This item does not exist", ephemeral=True)
+            return
+        gear_id = await self.db.get_gear_id_hasitem(ctx.author, gear)
+        
+        active_items = await self.check_active_items(ctx.author)
+        if active_items is None or len(active_items) == 0:
+            await ctx.respond("This gear is not currently active", ephemeral=True)
+            return
+        if gear_id != active_items[1]:
+            await ctx.respond("This gear is not currently active", ephemeral=True)
+            return
+        get_item_uses = active_items[2]
+        item_duration = await self.db.get_item_duration(ctx.author, gear)
+        base_value = await self.db.get_gear_value_byid(gear_id)
+        if base_value is None:
+            await ctx.respond("Base value not found for this gear type", ephemeral=True)
+            return
+
+        base_value = float(base_value)
+        sell_value = base_value * 0.5  # 50% of the base value
+        if get_item_uses > 0:
+            if get_item_uses != item_duration:
+                get_item_uses = item_duration - get_item_uses
+                sell_value *= 1 - (0.05 * get_item_uses)
+            await self.db.change_value(ctx.author, sell_value)
+            await self.db.remove_item(ctx.author, active_items[0])
+            await ctx.respond(f"You sold **{gear}** for {sell_value} coins")
+        else:
+            await ctx.respond(f"This item is broken and cannot be sold", ephemeral=True)
+            await self.db.remove_old_items()
+            return
+
+
+    async def check_active_items(self, user):
+        """
+            Check if the user has an active item
+            return the item data -> [0]id, [1]item_id and [2]uses left
+        """
+        async with aiosqlite.connect(SHOP_DB) as db:
+            async with db.execute(
+                "SELECT id, item_id, uses_left FROM has_item WHERE user_id = ? AND uses_left > 0 AND is_active = 1 ORDER BY uses_left ASC",
+                (user.id,),
+            ) as cursor:
+                active_item = await cursor.fetchone()
+                if active_item is None:
+                    return None
+                item_id = active_item[1]
+                uses_left = active_item[2]
+        return (active_item[0], item_id, uses_left)
 
 
 def setup(bot):
