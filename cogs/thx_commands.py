@@ -10,6 +10,7 @@ from config import COLOR, CURRENCY
 from utils import set_thumbnail, get_faction_name
 from cogs.shop import Shop
 from discord.ext.commands import BucketType
+from utils.thx import create_milestone_reward_claim
 
 class Thxcommands(commands.Cog):
     def __init__(self, bot):
@@ -27,9 +28,9 @@ class Thxcommands(commands.Cog):
     async def transferthx(self, ctx):
         coins = await self.db.get_value(ctx.author)
         if coins >= 1000:
-            # code = await self.db.get_wallet_code(ctx.author)
-            # webhook = os.getenv("WEBHOOK_TRAIN_REWARD")
-            # await create_milestone_reward_claim(webhook, code)
+            code = await self.db.get_wallet_code(ctx.author)
+            webhook = os.getenv("WEBHOOK_TRANSFER_REWARD")
+            await create_milestone_reward_claim(webhook, code)
             embed = Embed(
                 title="You got your THX Reward!",
                 description=f"Check your THX Wallet to see your reward!",

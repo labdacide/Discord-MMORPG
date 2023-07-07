@@ -438,12 +438,11 @@ class Shop(commands.Cog):
         get_armor = await self.get_equipped_armor(ctx.author)
         get_weapon =  await self.get_equipped_weapon(ctx.author)
         if get_armor is None or get_weapon is  None:
-            if gear not in get_armor or gear not in get_weapon:
-                await ctx.respond("You don't equip this gear", ephemeral=True)
-                return
-        # if gear not in :
-        #     await ctx.respond("You don't equip this gear", ephemeral=True)
-        #     return
+            await ctx.respond("You don't equip this gear", ephemeral=True)
+            return
+        if gear not in get_armor or gear not in get_weapon:
+            await ctx.respond("You don't equip this gear", ephemeral=True)
+            return
 
         gear_type = await self.db.get_gear_type(gear)
         if gear_type is None:
@@ -562,28 +561,25 @@ class Shop(commands.Cog):
             return
         gear_id = await self.db.get_gear_id_hasitem(ctx.author, gear)
         
-        active_items = await self.check_active_items(ctx.author)
-        if active_items is None or len(active_items) == 0:
+        db_id, db_item_id, db_use_left = await self.check_active_items(ctx.author, gear_id)
+        if db_id is None:
             await ctx.respond("This gear is not currently active", ephemeral=True)
             return
-        if gear_id != active_items[1]:
-            await ctx.respond("This gear is not currently active", ephemeral=True)
-            return
-        get_item_uses = active_items[2]
+        get_item_uses = db_use_left
         item_duration = await self.db.get_item_duration(ctx.author, gear)
-        base_value = await self.db.get_gear_value_byid(gear_id)
+        base_value = await self.db.get_gear_value_byid(db_item_id)
         if base_value is None:
             await ctx.respond("Base value not found for this gear type", ephemeral=True)
             return
 
         base_value = float(base_value)
-        sell_value = base_value * 0.5  # 50% of the base value
+        sell_value = base_value * 0.5
         if get_item_uses > 0:
             if get_item_uses != item_duration:
                 get_item_uses = item_duration - get_item_uses
                 sell_value *= 1 - (0.05 * get_item_uses)
             await self.db.change_value(ctx.author, sell_value)
-            await self.db.remove_item(ctx.author, active_items[0])
+            await self.db.remove_item(ctx.author, db_id)
             await ctx.respond(f"You sold **{gear}** for {sell_value} coins")
         else:
             await ctx.respond(f"This item is broken and cannot be sold", ephemeral=True)
@@ -591,19 +587,19 @@ class Shop(commands.Cog):
             return
 
 
-    async def check_active_items(self, user):
+    async def check_active_items(self, user,gear_id):
         """
             Check if the user has an active item
             return the item data -> [0]id, [1]item_id and [2]uses left
         """
         async with aiosqlite.connect(SHOP_DB) as db:
             async with db.execute(
-                "SELECT id, item_id, uses_left FROM has_item WHERE user_id = ? AND uses_left > 0 AND is_active = 1 ORDER BY uses_left ASC",
-                (user.id,),
+                "SELECT id, item_id, uses_left FROM has_item WHERE user_id = ? AND item_id = ? AND uses_left > 0 AND is_active = 1 ORDER BY uses_left ASC",
+                (user.id, gear_id),
             ) as cursor:
                 active_item = await cursor.fetchone()
                 if active_item is None:
-                    return None
+                    return None, None, None
                 item_id = active_item[1]
                 uses_left = active_item[2]
         return (active_item[0], item_id, uses_left)
