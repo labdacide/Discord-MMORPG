@@ -32,7 +32,9 @@ class Bot(commands.Bot):
             cmd = ctx.command.name
             if ctx.channel.id != THX_REWARD and cmd == ["thxreward", "transferthx"]:
                 raise WrongChannel()
-            if ctx.channel.id == SHOP and cmd not in ["buy", "shop", "givekcoin", "giveitem", "sell"]:
+            if ctx.channel.id != BOSS and cmd in ["createboss", "boss", "attack_boss"]:
+                raise WrongChannel()
+            if ctx.channel.id != SHOP and cmd in ["buy", "shop", "givekcoin", "giveitem", "sell"]:
                 raise WrongChannel()
             if ctx.channel.id == LEVEL_UP and cmd not in ["levelup"]:
                 raise WrongChannel()

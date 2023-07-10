@@ -6,8 +6,9 @@ import asyncio
 
 from config import FACTIONS
 from utils.thx import create_wallet_code
-
-class Database:
+from .boss_database import BossDatabase
+class Database(BossDatabase):
+    
     DB = "divergent.db"
 
     async def setup_db(self):
@@ -409,18 +410,18 @@ class Database:
                     return None
         return result[0]
 
-    async def get_owned_items_by_name(user_id, item_name):
-        items = []
-        async with aiosqlite.connect(SHOP_DB) as db:
-            async with db.execute(
-                "SELECT items.name, has_item.gear_id FROM has_item, items WHERE has_item.user_id = ? AND items.id = has_item.item_id AND has_item.user_id = ? AND items.name = ?",
-                (user_id, user_id, item_name),
-            ) as cursor:
-                async for row in cursor:
-                    item_name = row[0]
-                    gear_id = row[1]
-                    items.append({"name": item_name, "gear_id": gear_id})
-        return items
+    # async def get_owned_items_by_name(user_id, item_name):
+    #     items = []
+    #     async with aiosqlite.connect(self.DB) as db:
+    #         async with db.execute(
+    #             "SELECT items.name, has_item.gear_id FROM has_item, items WHERE has_item.user_id = ? AND items.id = has_item.item_id AND has_item.user_id = ? AND items.name = ?",
+    #             (user_id, user_id, item_name),
+    #         ) as cursor:
+    #             async for row in cursor:
+    #                 item_name = row[0]
+    #                 gear_id = row[1]
+    #                 items.append({"name": item_name, "gear_id": gear_id})
+    #     return items
 
     async def use_item(self, member, effect):
         async with aiosqlite.connect(self.DB) as db:
