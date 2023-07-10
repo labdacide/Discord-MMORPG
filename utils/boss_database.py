@@ -1,11 +1,11 @@
 import aiosqlite
 
 class BossDatabase:
-    async def create_boss(self, name, image_url, hp):
+    async def create_boss(self, name, image_url, strength, resistance, hp, time):
         async with aiosqlite.connect(self.DB) as db:
             await db.execute(
-                "INSERT INTO boss (name, image, hp, current_hp) VALUES (?, ?, ?, ?)",
-                (name, image_url, hp, hp)
+                "INSERT INTO boss (name, image, str, res, hp, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+                (name, strength, resistance, image_url, hp, time)
             )
             await db.commit()
 
@@ -68,8 +68,14 @@ class BossDatabase:
             )
             await db.commit()
     async def check_boss_exists(self):
-    async with aiosqlite.connect(self.DB) as db:
-        async with db.execute("SELECT COUNT(*) FROM boss WHERE current_hp > 0") as cursor:
-            result = await cursor.fetchone()
-            boss_count = result[0]
-            return boss_count > 0
+        async with aiosqlite.connect(self.DB) as db:
+            async with db.execute("SELECT COUNT(*) FROM boss") as cursor:
+                result = await cursor.fetchone()
+                boss_count = result[0]
+                return boss_count > 0
+    
+    async def delete_boss_tables(self):
+        async with aiosqlite.connect(self.DB) as db:
+            await db.execute("DROP TABLE IF EXISTS boss")
+            await db.execute("DROP TABLE IF EXISTS boss_attackers")
+            await db.commit()

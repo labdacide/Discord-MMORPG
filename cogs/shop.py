@@ -580,12 +580,11 @@ class Shop(commands.Cog):
                 sell_value *= 1 - (0.05 * get_item_uses)
             await self.db.change_value(ctx.author, sell_value)
             await self.db.remove_item(ctx.author, db_id)
-            await ctx.respond(f"You sold **{gear}** for {sell_value} coins")
+            await ctx.respond(f"You sold **{gear}** for {sell_value} coins", ephemeral=True)
         else:
             await ctx.respond(f"This item is broken and cannot be sold", ephemeral=True)
             await self.db.remove_old_items()
             return
-
 
     async def check_active_items(self, user,gear_id):
         """
